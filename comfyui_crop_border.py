@@ -31,14 +31,12 @@ class CropImageBorder:
         Detect white/black borders in the image
         Returns: (top, right, bottom, left) border sizes
         """
-        if len(img.shape) == 4:  # Handle batch dimension
-            img = img[0]
-            
         # Convert to numpy and ensure correct format
         if isinstance(img, torch.Tensor):
             img = img.cpu().numpy()
             
-        if img.shape[0] == 3:  # If channels first
+        # Ensure image is in HWC format for processing
+        if img.shape[0] == 3:  # CHW to HWC
             img = np.transpose(img, (1, 2, 0))
             
         height, width = img.shape[:2]
@@ -78,19 +76,7 @@ class CropImageBorder:
     def crop_border(self, image: torch.Tensor, threshold: float) -> tuple[torch.Tensor]:
         """Crop white/black borders from the image"""
         try:
-            # Ensure image is a proper tensor
-            if not isinstance(image, torch.Tensor):
-                image = torch.from_numpy(image)
-            
-            # Convert to float32 if needed
-            if image.dtype != torch.float32:
-                image = image.float()
-            
-            # Normalize to 0-1 range if needed
-            if image.max() > 1.0:
-                image = image / 255.0
-                
-            # Convert to numpy for border detection
+            # Convert to numpy for processing
             image_np = image.cpu().numpy()
             
             # Detect borders
@@ -100,19 +86,14 @@ class CropImageBorder:
             if top == 0 and left == 0 and bottom == image_np.shape[1] and right == image_np.shape[2]:
                 return (image,)
             
-            # Crop the image
-            if len(image.shape) == 4:  # With batch dimension
-                cropped = image[:, :, top:bottom, left:right]
-            else:  # Without batch dimension
-                cropped = image[:, top:bottom, left:right]
-                
-            # Ensure output is float32
-            cropped = cropped.float()
+            # Crop the image tensor directly
+            cropped = image[:, top:bottom, left:right]
             
             return (cropped,)
             
         except Exception as e:
-            raise RuntimeError(f"Error cropping borders: {str(e)}")
+            print(f"Error in crop_border: {str(e)}")
+            return (image,)  # Return original image if error occurs
 
 # Node registration
 NODE_CLASS_MAPPINGS = {
